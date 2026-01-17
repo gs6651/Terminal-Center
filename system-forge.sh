@@ -167,3 +167,6 @@ EOF"
 sudo systemctl daemon-reload && sudo systemctl restart bluetooth
 
 echo -e "${GREEN}Forge Complete! Run 'source ~/.bashrc' to enable the 'gitsync' command.${NC}"
+
+# --- 9. Essential Tools ---
+sudo apt install -y git curl build-essential
