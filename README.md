@@ -54,6 +54,10 @@ Once the forge is complete, the `gitsync` command is installed to ~/.local/bin/.
 - **Compatibility**: Ubuntu 25.10+ | Fedora 43+
 - **Desktop**: GNOME Optimized 🖥️
 
-🤝 Contributions
+## 🛡️ Credits & Acknowledgments
+
+Special thanks to GitHub user [wz790](https://github.com/wz790) for the foundational Fedora setup tweaks, encrypted DNS configurations, and GNOME optimization strategies found in the `Fedora-Noble-Setup` repository.
+
+## 🤝 Contributions
 
 Found a way to optimize a kernel parameter? Open a Pull Request! 🍻
