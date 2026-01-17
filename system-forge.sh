@@ -15,11 +15,12 @@ GREEN='\033[0;32m'
 CYAN='\033[0;36m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
+BLUE='\033[0;34m'
 NC='\033[0m'
 
-echo -e "${CYAN}Starting System Forge for ${NAME} ${VER}...${NC}"
+echo -e "${CYAN}Starting System Forge v2.0 for ${NAME} ${VER}...${NC}"
 
-# Detect Package Manager (Favoring DNF5 if available on Fedora 43+)
+# Detect Package Manager
 if command -v dnf5 &> /dev/null; then
     INSTALL_CMD="sudo dnf5 install -y"
     UPDATE_CMD="sudo dnf5 upgrade -y"
@@ -35,7 +36,7 @@ else
     exit 1
 fi
 
-# --- 2. System Update & Repo Setup ---
+# --- 2. System Update ---
 echo -e "${YELLOW}Updating System...${NC}"
 $UPDATE_CMD
 
@@ -44,16 +45,14 @@ if [[ "$OS" == "fedora" ]]; then
     echo -e "${YELLOW}Enabling RPM Fusion & Cisco H264...${NC}"
     sudo dnf install -y https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
                         https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
-    # DNF5 compatibility: using 'config-manager' which is now a built-in subcommand
     sudo dnf config-manager --set-enabled fedora-cisco-openh264
 fi
 
 # --- 4. UBUNTU SPECIFIC: Debloating ---
 if [[ "$OS" == "ubuntu" ]]; then
-    echo -e "${YELLOW}Purging Snaps (Ubuntu 25.10 compatible)...${NC}"
+    echo -e "${YELLOW}Purging Snaps...${NC}"
     sudo snap list | awk '{if(NR>1) print $1}' | xargs -I{} sudo snap remove --purge {}
     sudo apt purge snapd -y
-    # Prevent Snap from ever coming back
     sudo bash -c 'cat <<EOF > /etc/apt/preferences.d/nosnap.pref
 Package: snapd
 Pin: release a=*
@@ -61,18 +60,17 @@ Pin-Priority: -10
 EOF'
 fi
 
-# --- 5. Git & "Second Brain" Setup ---
-echo -e "${CYAN}--- Personalization & Git ---${NC}"
+# --- 5. Git & Multi-Repo Architecture ---
+echo -e "${CYAN}--- Git & Knowledge Base Setup ---${NC}"
 read -p "Git Email: " git_email
-read -p "Git Username: " git_user
-read -p "Git Repo URL (SSH): " git_repo_url
-read -p "Local Folder Path (e.g., /home/$USER/Brain): " git_path
+git_user="gs6651"
+base_git_path="$HOME/Documents/GitLocal"
 
 $INSTALL_CMD git
 git config --global user.email "$git_email"
 git config --global user.name "$git_user"
 
-# SSH Key Generation (Modern Ed25519)
+# SSH Key Generation
 if [ ! -f ~/.ssh/id_ed25519 ]; then
     ssh-keygen -t ed25519 -C "$git_email" -f ~/.ssh/id_ed25519 -N ""
     echo -e "${GREEN}Copy this key to GitHub Settings:${NC}"
@@ -80,26 +78,67 @@ if [ ! -f ~/.ssh/id_ed25519 ]; then
     read -p "Press Enter after you have added the key..."
 fi
 
-# Clone the Second Brain
-mkdir -p "$(dirname "$git_path")"
-git clone --depth 1 "$git_repo_url" "$git_path"
+# Clone the 4 Specialized Repos
+mkdir -p "$base_git_path"
+REPOS=("Packet-Foundry" "Terminal-Center" "Six-String-Sanctuary" "The-Inkwell")
 
-# --- 6. Custom Tool: gitsync ---
+for REPO in "${REPOS[@]}"; do
+    if [ ! -d "$base_git_path/$REPO" ]; then
+        echo -e "${YELLOW}Attempting to clone $REPO...${NC}"
+        # Adding '|| true' prevents the script from stopping if the repo is private
+        git clone "git@github.com:gs6651/$REPO.git" "$base_git_path/$REPO" || echo -e "${RED}Note: Could not clone $REPO (It may be private). Skipping...${NC}"
+    fi
+done
+
+# --- 6. Custom Tool: gitsync (Colorful & Multi-repo) ---
 echo -e "${YELLOW}Installing 'gitsync' to ~/.local/bin/...${NC}"
 mkdir -p ~/.local/bin
-cat <<EOF > ~/.local/bin/gitsync
+
+cat << 'EOF' > ~/.local/bin/gitsync
 #!/bin/bash
-cd "$git_path" || exit 1
-git pull
-if [[ -n \$(git status --porcelain) ]]; then
-    git add .
-    git commit -m "forge-sync: \$(date +'%Y-%m-%d %H:%M:%S')"
-    git push
-fi
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+BASE_DIR="$HOME/Documents/GitLocal"
+REPOS=("Packet-Foundry" "Terminal-Center" "Six-String-Sanctuary" "The-Inkwell")
+
+echo -e "${BLUE}🚀 Starting Global GitSync...${NC}"
+
+for REPO in "${REPOS[@]}"; do
+    if [ -d "$BASE_DIR/$REPO" ]; then
+        echo -e "${NC}--------------------------------------------"
+        echo -e "📁 Processing: ${YELLOW}$REPO${NC}"
+        cd "$BASE_DIR/$REPO"
+        
+        if git pull origin main --rebase; then
+            git add .
+            if ! git diff-index --quiet HEAD; then
+                git commit -m "Auto-sync from linux: $(date +'%Y-%m-%d %H:%M:%S')"
+                git push origin main
+                echo -e "${GREEN}📤 Changes pushed successfully.${NC}"
+            else
+                echo -e "${BLUE}✨ Already up to date.${NC}"
+            fi
+        else
+            echo -e "${RED}❌ Sync failed for $REPO.${NC}"
+        fi
+    fi
+done
+echo -e "${NC}--------------------------------------------"
+echo -e "${GREEN}✅ All repositories synchronized!${NC}"
 EOF
+
 chmod +x ~/.local/bin/gitsync
 
-# --- 7. Software Selection (Universal) ---
+# Ensure ~/.local/bin is in PATH
+if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+    echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+fi
+
+# --- 7. Software Selection ---
 confirm() { read -p "Install $1? (y/n): " c; [[ "$c" == "y" ]]; }
 
 if confirm "VS Code"; then
@@ -114,11 +153,10 @@ if confirm "VS Code"; then
     fi
 fi
 
-# --- 8. System Tweaks (GNOME & BT) ---
-echo -e "${YELLOW}Optimizing GNOME & Bluetooth Experimental Features...${NC}"
+# --- 8. System Tweaks ---
+echo -e "${YELLOW}Optimizing GNOME & Bluetooth...${NC}"
 gsettings set org.gnome.desktop.wm.preferences button-layout 'appmenu:minimize,maximize,close'
 
-# Dynamic path for Bluetooth Battery Reporting
 BT_SERVICE_PATH=$(find /usr/lib* -name bluetoothd | head -n 1)
 sudo mkdir -p /etc/systemd/system/bluetooth.service.d
 sudo bash -c "cat <<EOF > /etc/systemd/system/bluetooth.service.d/override.conf
@@ -128,4 +166,4 @@ ExecStart=$BT_SERVICE_PATH --experimental
 EOF"
 sudo systemctl daemon-reload && sudo systemctl restart bluetooth
 
-echo -e "${GREEN}Forge Complete! Your system is now 'Settled'.${NC}"
+echo -e "${GREEN}Forge Complete! Run 'source ~/.bashrc' to enable the 'gitsync' command.${NC}"
