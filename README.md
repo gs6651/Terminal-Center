@@ -10,7 +10,7 @@ Welcome to the central command of my Linux environment. This repository houses t
 To initialize a fresh Ubuntu or Fedora machine with my custom environment, run this one-liner:
 
 ```bash
-curl -sL [https://raw.githubusercontent.com/gs6651/Terminal-Center/main/system-forge.sh](https://raw.githubusercontent.com/gs6651/Terminal-Center/main/system-forge.sh) | bash
+curl -sL https://raw.githubusercontent.com/gs6651/Terminal-Center/main/system-forge.sh | bash
 ```
 
 ## ✨ What’s Under the Hood?
