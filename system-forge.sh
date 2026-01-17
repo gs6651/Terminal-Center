@@ -1,17 +1,25 @@
 #!/bin/bash
 
+# ==========================================================
+# 🚀 SYSTEM-FORGE.SH
+# Multi-Distro Provisioner (Ubuntu/Fedora)
+# ==========================================================
+
 # 0. Interactive Setup
-echo "👤 Git Configuration"
-read -p "   Enter Git Username: " GIT_USER
-read -p "   Enter Git Email: " GIT_EMAIL
+echo -e "\033[0;35m👤 GIT IDENTITY SETUP\033[0m"
+read -p "   Enter GitHub Username: " GIT_USER
+read -p "   Enter GitHub Email:    " GIT_EMAIL
 
 # 1. OS Detection
 OS_TYPE=$(lsb_release -si 2>/dev/null || [ -f /etc/fedora-release ] && echo "Fedora" || echo "Ubuntu")
+echo -e "\033[0;34m🌐 Detected OS: $OS_TYPE\033[0m"
+
+# 2. Hostname Configuration
 sudo hostnamectl set-hostname $(echo "$OS_TYPE" | tr '[:upper:]' '[:lower:]')
 
-# 2. Ubuntu: Snap Purge & Firefox Pinning
+# 3. Ubuntu-Specific: Snap Purge & Firefox Pinning
 if [ "$OS_TYPE" == "Ubuntu" ]; then
-    echo "🛡️ Purging Snap & Pinning Firefox PPA..."
+    echo "🛡️ Purging Snap & Pinning Mozilla PPA..."
     sudo snap remove firefox 2>/dev/null
     sudo apt purge -y snapd 2>/dev/null
     sudo add-apt-repository -y ppa:mozillateam/ppa
@@ -33,18 +41,28 @@ Pin-Priority: -10
 EOF
 fi
 
-# 3. Dependencies & Softwares
+# 4. Dependencies & Softwares
 echo "📦 Installing Apps..."
 if [ "$OS_TYPE" == "Fedora" ]; then
     sudo dnf install -y https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
-    sudo dnf install -y git gettext ffmpeg audacity firefox gnome-extensions-app libreoffice-writer libreoffice-calc dnsconfd
+    # VS Code RPM Repo
+    sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
+    sudo sh -c 'echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com/yumrepos/vscode\nenabled=1\ngpgcheck=1\ngpgkey=https://packages.microsoft.com/keys/microsoft.asc" > /etc/yum.repos.d/vscode.repo'
+    
+    sudo dnf install -y curl git gettext ffmpeg audacity firefox gnome-extensions-app libreoffice-writer libreoffice-calc dnsconfd code
 else
     sudo apt update
-    sudo apt install -y ffmpeg audacity gnome-shell-extension-manager libreoffice-writer libreoffice-calc git gettext software-properties-common
-    sudo apt install -y firefox
+    # VS Code DEB Repo
+    curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg
+    sudo install -o root -g root -m 644 microsoft.gpg /etc/apt/trusted.gpg.d/
+    sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main" > /etc/apt/sources.list.d/vscode.list'
+    rm microsoft.gpg
+    
+    sudo apt update
+    sudo apt install -y ffmpeg audacity gnome-shell-extension-manager libreoffice-writer libreoffice-calc curl git gettext software-properties-common code firefox
 fi
 
-# 4. Encrypted DNS (DoT)
+# 5. Encrypted DNS (DoT)
 echo "🔒 Configuring Encrypted DNS..."
 if [ "$OS_TYPE" == "Fedora" ]; then
     sudo systemctl disable --now systemd-resolved && sudo systemctl mask systemd-resolved
@@ -60,101 +78,113 @@ servers=dns+tls://1.1.1.1#one.one.one.one
 EOF
     sudo systemctl restart NetworkManager
 else
-    # Ubuntu Method (systemd-resolved)
     sudo sed -i 's/#DNS=/DNS=1.1.1.1 1.0.0.1/' /etc/systemd/resolved.conf
     sudo sed -i 's/#DNSOverTLS=no/DNSOverTLS=yes/' /etc/systemd/resolved.conf
     sudo systemctl restart systemd-resolved
 fi
 
-# 5. Git & SSH Setup
+# 6. Git & SSH Setup
 git config --global user.name "$GIT_USER"
 git config --global user.email "$GIT_EMAIL"
 if [ ! -f ~/.ssh/id_ed25519 ]; then
     ssh-keygen -t ed25519 -C "$GIT_USER@$(hostname)" -N "" -f ~/.ssh/id_ed25519
+    echo -e "\033[1;33m⚠️ ADD THIS SSH KEY TO GITHUB:\033[0m"
     cat ~/.ssh/id_ed25519.pub
 fi
 
-# 6. Clone Repos
+# 7. Multi-Repo Architecture
 mkdir -p ~/Documents/GitLocal
 REPOS=("Terminal-Center" "Packet-Foundry" "Six-String-Sanctuary" "The-Inkwell" "$GIT_USER")
-
 for r in "${REPOS[@]}"; do
     if [ ! -d "$HOME/Documents/GitLocal/$r" ]; then
         git clone git@github.com:$GIT_USER/$r.git "$HOME/Documents/GitLocal/$r"
     fi
 done
 
-# 7. Create gitsync tool
+# 8. Create gitsync tool & gs Alias
 mkdir -p ~/.local/bin
-
-# We keep 'EOF' quoted to protect all the internal variables like $REPO and $1
 cat << 'EOF' > ~/.local/bin/gitsync
 #!/bin/bash
+
+# --- 1. Colors & Branding ---
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m'
+PURPLE='\033[0;35m'
+NC='\033[0m' 
 
 BASE_DIR="$HOME/Documents/GitLocal"
 
-# Check if a specific repo was passed as an argument
+echo -e "${PURPLE}============================================${NC}"
+echo -e "${PURPLE}🚀 gs6651's GIT-FORGE SYNC ENGINE${NC}"
+echo -e "${PURPLE}============================================${NC}"
+
+# --- 2. Determine Targets ---
 if [ -n "$1" ]; then
     REPOS=("$1")
-    echo -e "${BLUE}🎯 Targeting single repo: $1${NC}"
+    echo -e "${BLUE}🎯 Targeting: $1${NC}"
 else
-    # We use a placeholder here
-    REPOS=("Packet-Foundry" "Terminal-Center" "Six-String-Sanctuary" "The-Inkwell" "USER_NAME_PLACEHOLDER")
-    echo -e "${BLUE}🚀 Starting Global GitSync (All Repos)...${NC}"
+    # Explicitly find folders only inside GitLocal
+    REPOS=($(find "$BASE_DIR" -maxdepth 1 -mindepth 1 -type d -exec basename {} \;))
+    echo -e "${BLUE}📊 Detected ${#REPOS[@]} Repositories in GitLocal${NC}"
 fi
 
+# --- 3. Main Loop ---
 for REPO in "${REPOS[@]}"; do
     TARGET="$BASE_DIR/$REPO"
     
-    if [ -d "$TARGET" ]; then
-        echo -e "${NC}--------------------------------------------"
+    echo -e "${NC}--------------------------------------------"
+    
+    if [ -d "$TARGET" ] && [ -d "$TARGET/.git" ]; then
         echo -e "📁 Processing: ${YELLOW}$REPO${NC}"
         cd "$TARGET" || continue
 
+        # Internal automation for stats
         if [ "$REPO" == "The-Inkwell" ] && [ -f ".assets/update_stats.sh" ]; then
+            echo -e "${BLUE}📝 Updating Book Stats...${NC}"
             bash "./.assets/update_stats.sh"
         fi
 
-        if [ ! -d ".git" ]; then
-            echo -e "${RED}❌ Error: $REPO is not a git repository.${NC}"
-            continue
-        fi
-
+        # Git Operations
         git add .
         STASH_OUT=$(git stash push -m "sync-stash")
 
+        echo -e "${BLUE}🔄 Pulling latest changes...${NC}"
         if git pull origin main --rebase; then
-            echo -e "${GREEN}📥 Pull successful.${NC}"
-            [ "$STASH_OUT" != "No local changes to save" ] && git stash pop --quiet
+            [[ "$STASH_OUT" != "No local changes to save" ]] && git stash pop --quiet
             
             if ! git diff-index --quiet HEAD; then
                 git add .
                 git commit -m "Auto-sync: $(date +'%Y-%m-%d %H:%M:%S')"
-                git push origin main && echo -e "${GREEN}📤 Pushed changes.${NC}"
+                if git push origin main; then
+                    echo -e "${GREEN}📤 Pushed successfully!${NC}"
+                else
+                    echo -e "${RED}❌ Push failed! Check connection or permissions.${NC}"
+                fi
             else
-                echo -e "${BLUE}✨ Already up to date.${NC}"
+                echo -e "${GREEN}✨ Sync complete. No new changes to push.${NC}"
             fi
         else
-            echo -e "${RED}❌ Pull failed.${NC}"
-            [ "$STASH_OUT" != "No local changes to save" ] && git stash pop --quiet
+            echo -e "${RED}❌ Pull/Rebase failed! Manual conflict resolution needed.${NC}"
+            [[ "$STASH_OUT" != "No local changes to save" ]] && git stash pop --quiet
         fi
     else
-        echo -e "${RED}❌ Error: Directory $REPO not found.${NC}"
+        echo -e "${RED}⚠️ Skipping: $REPO (Not a Git repository)${NC}"
     fi
 done
-echo -e "${NC}--------------------------------------------"
-echo -e "${GREEN}✅ Done!${NC}"
+
+echo -e "${PURPLE}============================================${NC}"
+echo -e "${GREEN}✅ ALL SYNC OPERATIONS FINISHED${NC}"
+echo -e "${PURPLE}============================================${NC}"
+
 EOF
-
-# NOW: We swap the placeholder with your actual $GIT_USER variable
-sed -i "s/USER_NAME_PLACEHOLDER/$GIT_USER/g" ~/.local/bin/gitsync
-
 chmod +x ~/.local/bin/gitsync
+
+# Add 'gs' alias to .bashrc if it doesn't exist
+if ! grep -q "alias gs=" ~/.bashrc; then
+    echo "alias gs='~/.local/bin/gitsync'" >> ~/.bashrc
+fi
 
 # 8. GNOME Tweaks
 gsettings set org.gnome.desktop.wm.preferences button-layout "appmenu:minimize,maximize,close"
