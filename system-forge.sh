@@ -191,50 +191,40 @@ fi
 gsettings set org.gnome.desktop.wm.preferences button-layout "appmenu:minimize,maximize,close"
 gsettings set org.gnome.Bluetooth power-state-always-on false
 
-# 9.1. Bluetooth Battery percentage (Automated Override)
-echo "🔋 Enabling Bluetooth Experimental features for battery stats..."
+# 9.1. Bluetooth Battery Percentage (Automated)
+echo "🔋 Enabling Bluetooth Experimental features..."
 sudo mkdir -p /etc/systemd/system/bluetooth.service.d
 sudo tee /etc/systemd/system/bluetooth.service.d/override.conf > /dev/null <<EOF
 [Service]
 ExecStart=
 ExecStart=/usr/libexec/bluetooth/bluetoothd --experimental
 EOF
+sudo systemctl daemon-reload && sudo systemctl restart bluetooth.service
 
-# Reload and Restart to apply
-sudo systemctl daemon-reload
-sudo systemctl restart bluetooth.service
-
-# 9.2. Terminal Transparency (Ptyxis)
+# 9.2. Terminal Transparency (Smarter Ptyxis Detection)
 echo "🎨 Applying Ptyxis Transparency..."
-
-# Try to get the default profile
+# Try to get default; if null, grab the first existing profile UUID
 PTYXIS_PROFILE=$(gsettings get org.gnome.Ptyxis default-profile 2>/dev/null | tr -d "'")
-
-# If default is empty, grab the first profile ID from the list
 if [ -z "$PTYXIS_PROFILE" ] || [ "$PTYXIS_PROFILE" == "null" ]; then
     PTYXIS_PROFILE=$(gsettings get org.gnome.Ptyxis profile-uuids 2>/dev/null | tr -d "[]'," | awk '{print $1}')
 fi
 
-# Apply the setting if we found a profile
 if [ -n "$PTYXIS_PROFILE" ]; then
     gsettings set org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/$PTYXIS_PROFILE/ opacity 0.90
-    echo -e "\033[0;32m✅ Ptyxis transparency set to 0.90 on profile: $PTYXIS_PROFILE\033[0m"
+    echo -e "\033[0;32m✅ Ptyxis transparency set on profile: $PTYXIS_PROFILE\033[0m"
 else
-    echo -e "\033[0;31m❌ Error: No Ptyxis profiles found.\033[0m"
+    echo -e "\033[0;33m⚠️ No Ptyxis profile detected. Open Ptyxis once to initialize.\033[0m"
 fi
-
 
 # 10. Final System Cleanup
 echo "🧹 Performing final cleanup..."
 if [ "$OS_TYPE" == "Fedora" ]; then
-    sudo dnf autoremove -y
-    sudo dnf clean all
+    sudo dnf autoremove -y && sudo dnf clean all
 else
-    sudo apt autoremove -y
-    sudo apt clean
+    sudo apt autoremove -y && sudo apt clean
 fi
 
-echo "✅ FORGE COMPLETE. After EFI Cleanup (Manual), REBOOT (Must)"
+echo -e "\033[0;32m✅ FORGE COMPLETE. PLEASE REBOOT.\033[0m"
 
 
 
