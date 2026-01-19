@@ -186,14 +186,45 @@ if ! grep -q "alias gs=" ~/.bashrc; then
     echo "alias gs='~/.local/bin/gitsync'" >> ~/.bashrc
 fi
 
-# 8. GNOME Tweaks
+
+# 9. GNOME Tweaks
 gsettings set org.gnome.desktop.wm.preferences button-layout "appmenu:minimize,maximize,close"
 gsettings set org.gnome.Bluetooth power-state-always-on false
-PTYXIS_PROFILE=$(gsettings get org.gnome.Ptyxis default-profile | tr -d "'")
-gsettings set org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/$PTYXIS_PROFILE/ opacity 0.90
+
+# 9.1. Bluetooth Battery percentage (Automated Override)
+echo "🔋 Enabling Bluetooth Experimental features for battery stats..."
+sudo mkdir -p /etc/systemd/system/bluetooth.service.d
+sudo tee /etc/systemd/system/bluetooth.service.d/override.conf > /dev/null <<EOF
+[Service]
+ExecStart=
+ExecStart=/usr/libexec/bluetooth/bluetoothd --experimental
+EOF
+
+# Reload and Restart to apply
+sudo systemctl daemon-reload
+sudo systemctl restart bluetooth.service
+
+# 9.2. Terminal Transparency (Ptyxis)
+echo "🎨 Applying Ptyxis Transparency..."
+
+# Try to get the default profile
+PTYXIS_PROFILE=$(gsettings get org.gnome.Ptyxis default-profile 2>/dev/null | tr -d "'")
+
+# If default is empty, grab the first profile ID from the list
+if [ -z "$PTYXIS_PROFILE" ] || [ "$PTYXIS_PROFILE" == "null" ]; then
+    PTYXIS_PROFILE=$(gsettings get org.gnome.Ptyxis profile-uuids 2>/dev/null | tr -d "[]'," | awk '{print $1}')
+fi
+
+# Apply the setting if we found a profile
+if [ -n "$PTYXIS_PROFILE" ]; then
+    gsettings set org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/$PTYXIS_PROFILE/ opacity 0.90
+    echo -e "\033[0;32m✅ Ptyxis transparency set to 0.90 on profile: $PTYXIS_PROFILE\033[0m"
+else
+    echo -e "\033[0;31m❌ Error: No Ptyxis profiles found.\033[0m"
+fi
 
 
-# 9. Final System Cleanup
+# 10. Final System Cleanup
 echo "🧹 Performing final cleanup..."
 if [ "$OS_TYPE" == "Fedora" ]; then
     sudo dnf autoremove -y
@@ -205,7 +236,9 @@ fi
 
 echo "✅ FORGE COMPLETE. After EFI Cleanup (Manual), REBOOT (Must)"
 
-# 10. EFI Cleanup (Removes old boot entries from previous distros)
+
+
+# 11. EFI Cleanup (Removes old boot entries from previous distros)
 echo "🧹 Cleaning EFI boot entries..."
 sudo efibootmgr # This displays the list so you can see what is happening
 # Example: sudo efibootmgr -b 0001 -B (This is manual to avoid deleting the current OS)
