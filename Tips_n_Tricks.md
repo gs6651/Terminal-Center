@@ -1,33 +1,39 @@
 
 # Tips n Tricks
 
+## Dual Setup (Windows - Feodra)
+
+- Prepare Windows bootable pendrive using `woeusb`, recommended.
+- If you're on linux, use commands:
+- Disable Fastboot
+
 ## Repair Windows
 
-**Step 1:** Remove the Linux Partitions in Windows
+- **Step 1: Remove the Linux Partitions in Windows**
 
-- Boot into Windows.
-- Open Disk Management by typing `diskmgmt.msc` in the Run dialog (Windows key + R).
-- Identify the Linux partitions, which will be unlabeled or have different file systems (e.g., ext4).
-- Right-click: on each identified Linux partition and select "Delete Volume".
-- Confirm the deletions to turn the Linux partitions into unallocated space.
+  - Boot into Windows.
+  - Open Disk Management by typing `diskmgmt.msc` in the Run dialog (Windows key + R).
+  - Identify the Linux partitions, which will be unlabeled or have different file systems (e.g., ext4).
+  - Right-click: on each identified Linux partition and select "Delete Volume".
+  - Confirm the deletions to turn the Linux partitions into unallocated space.
 
-**Step 2:** Repair the Windows Bootloader using a Recovery Drive
+- **Step 2: Repair the Windows Bootloader using a Recovery Drive**
 
-- Create a Windows recovery drive: or use your installation media.
-- Boot your computer: from the recovery drive or installation media.
-- Select the option to "Repair your computer".
-- Navigate to Troubleshoot > Advanced options > Command Prompt.
-- In the Command Prompt, type the following commands, pressing Enter after each one:
-  - `bootrec /fixmbr`,
-  - `bootrec /fixboot`
-  - `bootrec /scanos`
-  - `bootrec /rebuildbcd`
-- If prompted to add the Windows installation to the boot list, type Y or A and press Enter.
-- Type `exit` to close the command prompt and restart your computer normally.
+  - Create a Windows recovery drive: or use your installation media.
+  - Boot your computer: from the recovery drive or installation media.
+  - Select the option to "Repair your computer".
+  - Navigate to Troubleshoot > Advanced options > Command Prompt.
+  - In the Command Prompt, type the following commands, pressing Enter after each one:
+    - `bootrec /fixmbr`,
+    - `bootrec /fixboot`
+    - `bootrec /scanos`
+    - `bootrec /rebuildbcd`
+  - If prompted to add the Windows installation to the boot list, type Y or A and press Enter.
+  - Type `exit` to close the command prompt and restart your computer normally.
 
-**Step 3:** Clean the EFI Partition (if necessary)
+- **Step 3: Clean the EFI Partition (if necessary)**
 
-If you still see the GRUB boot menu, you may need to clean the EFI partition.
+If you still see the GRUB boot menu, you may need to clean the EFI partition. Follow below steps:
 
 - From within Windows, open a Command Prompt as an administrator.
 - Use diskpart to find and assign a letter to the EFI partition:
@@ -49,7 +55,7 @@ Restart your computer to confirm that it now boots directly into Windows.
 
 - Run `Test-Path $Profile` to check if a profile file exists.
 - If it returns `False`, create a profile file using `New-Item –Path $Profile –Type File –Force`.
-- **Note:** This will create the profile file or overwrite the existing one. 
+- **Note: This will create the profile file or overwrite the existing one.
 - Open the profile file using `notepad $Profile`
 - Add the following function to the file and save
 
