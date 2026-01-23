@@ -5,6 +5,12 @@
 
 - Prepare Windows bootable pendrive using `woeusb`, recommended.
 - If you're on linux, use commands:
+
+```bash
+sudo apt update
+sudo apt add ppa:
+```
+
 - Disable Fastboot
 
 ## Repair Windows
