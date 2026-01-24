@@ -12,7 +12,7 @@ foreach ($Repo in $Repos) {
 
         # Special case for The-Inkwell (Line 14)
         if ($Repo -eq "The-Inkwell" -and (Test-Path ".assets\update_stats.sh")) {
-            & "sh.exe" "./.assets/update_stats.sh"
+            & "C:\Program Files\Git\bin\sh.exe" ./.assets/update_stats.sh
         }
 
         git add .
