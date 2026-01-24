@@ -10,8 +10,9 @@ foreach ($Repo in $Repos) {
         Write-Host "Processing: $Repo" -ForegroundColor Yellow
         Push-Location $Target
 
+        # Special case for The-Inkwell (Line 14)
         if ($Repo -eq "The-Inkwell" -and (Test-Path ".assets\update_stats.sh")) {
-            sh "./.assets/update_stats.sh"
+            & "sh.exe" "./.assets/update_stats.sh"
         }
 
         git add .
