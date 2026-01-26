@@ -1,0 +1,54 @@
+# Increase timeouts to stop the [WARN] messages
+scan_timeout = 1000
+command_timeout = 1000
+
+# Get a clean, single-line prompt
+add_newline = false
+
+[character]
+success_symbol = "[➜](bold green)"
+error_symbol = "[➜](bold red)"
+
+[git_branch]
+symbol = "🌱 "
+style = "bold yellow"
+
+[git_status]
+ahead = "⇡${count}"
+behind = "⇣${count}"
+modified = "📝"
+untracked = "🆕"
+staged = "✅"
+
+# --- CUSTOM COLORS FOR YOUR REPOS ---
+[palettes.gaurav_theme]
+gs6651 = "bold cyan"
+terminal_center = "bold magenta"
+inkwell = "bold orange"
+sanctuary = "bold green"
+foundry = "bold blue"
+
+[directory]
+style = "bold italic blue"
+# This logic colors the directory name based on which repo you're in
+repo_root_style = "gaurav_theme" 
+
+# --- MASTER GITSYNC MODULE ---
+[custom.gitsync]
+description = "Show sync status of all local repos"
+command = """
+$repos = Get-ChildItem "$HOME/Documents/GitLocal" -Directory
+$dirty = $false
+foreach ($repo in $repos) {
+    if (git -C $repo.FullName status --porcelain) {
+        $dirty = $true
+        break
+    }
+}
+if ($dirty) { echo "❌" } else { echo "✅" }
+"""
+when = 'test -d "$HOME/Documents/GitLocal"'
+shell = ["powershell", "-Command"]
+style = "bold white"
+format = "[$symbol($output)]($style) "
+symbol = "🔄 "
